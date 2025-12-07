@@ -2,7 +2,6 @@ local inRedZone = false
 local currentZone = nil
 local playerStats = {kills = 0, deaths = 0, streak = 0}
 
--- Create blips for redzones
 Citizen.CreateThread(function()
     for _, zone in ipairs(Config.RedZones) do
         if zone.blip.enabled then
@@ -24,7 +23,6 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Check if player is in redzone
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(1000)
@@ -54,7 +52,6 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Draw redzone boundaries and domes
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(0)
@@ -66,21 +63,18 @@ Citizen.CreateThread(function()
             for _, zone in ipairs(Config.RedZones) do
                 local distance = #(playerCoords - zone.coords)
                 
-                -- Only draw if player is within render distance (500m)
                 if distance < 500.0 then
                     local isInZone = distance <= zone.radius
                     
-                    -- Pulse effect
                     local alpha = Config.Visual.boundaryColor[4]
                     if Config.Visual.pulseEffect then
                         local pulse = math.abs(math.sin(GetGameTimer() / 1000.0))
                         alpha = Config.Visual.boundaryColor[4] * (0.6 + pulse * 0.4)
                     end
                     
-                    -- Draw ground circle boundary
                     if Config.Visual.showBoundary then
                         DrawMarker(
-                            1, -- Cylinder marker
+                            1, 
                             zone.coords.x, zone.coords.y, zone.coords.z - 1.0,
                             0.0, 0.0, 0.0,
                             0.0, 0.0, 0.0,
@@ -93,7 +87,6 @@ Citizen.CreateThread(function()
                         )
                     end
                     
-                    -- Draw dome based on type
                     if Config.Visual.showDome and Config.Visual.domeType ~= "none" then
                         local domeAlpha = isInZone and Config.Visual.domeColor[4] * 2 or Config.Visual.domeColor[4]
                         
@@ -113,7 +106,6 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Dome drawing functions
 function DrawSphereDome(zone, alpha)
     local segments = 20
     local maxHeight = zone.radius * Config.Visual.domeHeight
@@ -158,7 +150,6 @@ function DrawHexagonDome(zone, alpha)
                 local x2 = zone.coords.x + math.cos(angle2) * currentRadius
                 local y2 = zone.coords.y + math.sin(angle2) * currentRadius
                 
-                -- Draw line between hexagon points
                 DrawLine(
                     x1, y1, zone.coords.z + height,
                     x2, y2, zone.coords.z + height,
@@ -177,7 +168,6 @@ function DrawGridDome(zone, alpha)
     local heightSegments = 15
     local maxHeight = zone.radius * Config.Visual.domeHeight
     
-    -- Vertical lines
     for i = 0, gridSegments do
         local angle = (i / gridSegments) * math.pi * 2
         local lastX, lastY, lastZ = nil, nil, nil
@@ -202,7 +192,6 @@ function DrawGridDome(zone, alpha)
         end
     end
     
-    -- Horizontal circles
     for i = 0, heightSegments, 2 do
         local height = (i / heightSegments) * maxHeight
         local currentRadius = math.sqrt(math.max(0, zone.radius * zone.radius - height * height))
@@ -254,7 +243,6 @@ function DrawPulseDome(zone, alpha)
     end
 end
 
--- Handle player death
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(0)
@@ -283,12 +271,10 @@ Citizen.CreateThread(function()
     end
 end)
 
--- Respawn player at redzone spawn point
 RegisterNetEvent('redzone:respawnPlayer')
 AddEventHandler('redzone:respawnPlayer', function(zoneName)
     local playerPed = PlayerPedId()
     
-    -- Get all spawn points for this zone
     local zoneSpawns = {}
     for _, spawn in ipairs(Config.RespawnLocations) do
         if spawn.zone == zoneName then
@@ -297,10 +283,8 @@ AddEventHandler('redzone:respawnPlayer', function(zoneName)
     end
     
     if #zoneSpawns > 0 then
-        -- Pick random spawn point
         local spawnPoint = zoneSpawns[math.random(1, #zoneSpawns)]
         
-        -- Revive and teleport
         local playerPed = PlayerPedId()
         local coords = spawnPoint.coords
         
@@ -309,13 +293,8 @@ AddEventHandler('redzone:respawnPlayer', function(zoneName)
         SetEntityHeading(playerPed, spawnPoint.coords.w)
         ClearPedTasksImmediately(playerPed)
         
-        -- Set health
         SetEntityHealth(playerPed, GetEntityMaxHealth(playerPed))
         
-        -- Clear weapons if you want
-        -- RemoveAllPedWeapons(playerPed, true)
-        
-        -- Notification
         TriggerEvent('chat:addMessage', {
             color = {255, 165, 0},
             multiline = true,
@@ -324,7 +303,6 @@ AddEventHandler('redzone:respawnPlayer', function(zoneName)
     end
 end)
 
--- Add kill to feed
 RegisterNetEvent('redzone:addKillFeed')
 AddEventHandler('redzone:addKillFeed', function(killerName, victimName)
     if Config.KillFeed.enabled then
@@ -336,19 +314,16 @@ AddEventHandler('redzone:addKillFeed', function(killerName, victimName)
     end
 end)
 
--- Request stats on resource start
 AddEventHandler('onClientResourceStart', function(resourceName)
     if GetCurrentResourceName() == resourceName then
         Citizen.Wait(1000)
         TriggerServerEvent('redzone:requestStats')
         
-        -- Set kill feed position
         SendNUIMessage({
             type = "setKillFeedPosition",
             position = Config.KillFeed.position
         })
         
-        -- Send UI colors to HTML
         SendNUIMessage({
             type = "setColors",
             colors = {
@@ -361,7 +336,6 @@ AddEventHandler('onClientResourceStart', function(resourceName)
     end
 end)
 
--- Update UI with stats
 RegisterNetEvent('redzone:updateStats')
 AddEventHandler('redzone:updateStats', function(stats)
     playerStats = stats
